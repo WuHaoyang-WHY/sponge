@@ -31,6 +31,9 @@ class StreamReassembler {
     long merge_block(block_node &elm1, const block_node &elm2);
 
   public:
+
+    size_t head_index() const {return _head_index;}
+    bool input_endeded() const {return _output.input_ended();}
     //! \brief Construct a `StreamReassembler` that will store up to `capacity` bytes.
     //! \note This capacity limits both the bytes that have been reassembled,
     //! and those that have not yet been reassembled. 

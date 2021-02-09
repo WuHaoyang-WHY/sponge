@@ -14,8 +14,7 @@ using namespace std;
 //! \param n The input absolute 64-bit sequence number
 //! \param isn The initial sequence number
 WrappingInt32 wrap(uint64_t n, WrappingInt32 isn) {
-    DUMMY_CODE(n, isn);
-    return WrappingInt32{0};
+    return WrappingInt32{uint32_t(n + isn.raw_value())};
 }
 
 //! Transform a WrappingInt32 into an "absolute" 64-bit sequence number (zero-indexed)
@@ -29,6 +28,16 @@ WrappingInt32 wrap(uint64_t n, WrappingInt32 isn) {
 //! and the other stream runs from the remote TCPSender to the local TCPReceiver and
 //! has a different ISN.
 uint64_t unwrap(WrappingInt32 n, WrappingInt32 isn, uint64_t checkpoint) {
-    DUMMY_CODE(n, isn, checkpoint);
-    return {};
+    WrappingInt32 wrap_checkpoint = wrap(checkpoint, isn);
+    uint32_t diff = n - wrap_checkpoint;
+    // This case should never be persent. Unforunately, it's include in test cases.
+    // This case occurs when diff < 0 and checkpoint < -diff,
+    // which means we are just starting the TCP connection, but the absolute ackno has exceed 2^31,
+    // which means we have over 2GB data on flying, and TCP 32bit acno is not enough.
+    // considering this case we can ONLY deal with the first 1 or 2 packet but not always.
+    if (diff & 0x80000000 && diff + checkpoint <= UINT32_MAX) {
+        return checkpoint + diff;
+    }
+    // this can deal with both diff > 0 and diff < 0 scenarios.
+    return checkpoint + static_cast<int32_t>(diff);
 }
